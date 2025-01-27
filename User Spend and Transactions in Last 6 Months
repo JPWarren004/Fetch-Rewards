@@ -1,0 +1,125 @@
+**Fetch Rewards Analysis: User Spend and Transactions in Last 6 Months**
+
+## **1. Combined SQL Query**
+
+```sql
+WITH recent_users AS (
+    SELECT user_id
+    FROM Users
+    WHERE created_date >= CURRENT_DATE - INTERVAL '6 months'
+),
+user_metrics AS (
+    SELECT
+        ri.barcode,
+        SUM(r.total_spent) AS total_spend,
+        COUNT(r.receipt_id) AS total_transactions
+    FROM Receipts r
+    JOIN Receipt_Items ri ON r.receipt_id = ri.receipt_id
+    WHERE r.user_id IN (SELECT user_id FROM recent_users)
+    GROUP BY ri.barcode
+)
+SELECT
+    b.name AS brand_name,
+    um.total_spend,
+    um.total_transactions
+FROM user_metrics um
+JOIN Brands b ON um.barcode = b.barcode
+ORDER BY total_spend DESC, total_transactions DESC
+LIMIT 1;
+```
+
+---
+
+## **2. Breakdown of Query Steps**
+
+### **Step 1: Identifying Recent Users**
+
+```sql
+WITH recent_users AS (
+    SELECT user_id
+    FROM Users
+    WHERE created_date >= CURRENT_DATE - INTERVAL '6 months'
+)
+```
+
+**Explanation:**
+- This step identifies users who created their accounts within the past 6 months.
+- Using `CURRENT_DATE - INTERVAL '6 months'` ensures we dynamically fetch users within the desired period.
+- The result is a list of `user_id` values, which will be used in subsequent queries.
+
+---
+
+### **Step 2: Calculating Spend and Transactions**
+
+```sql
+user_metrics AS (
+    SELECT
+        ri.barcode,
+        SUM(r.total_spent) AS total_spend,
+        COUNT(r.receipt_id) AS total_transactions
+    FROM Receipts r
+    JOIN Receipt_Items ri ON r.receipt_id = ri.receipt_id
+    WHERE r.user_id IN (SELECT user_id FROM recent_users)
+    GROUP BY ri.barcode
+)
+```
+
+**Explanation:**
+- This section calculates:
+  - **Total Spend:** Sum of `total_spent` for each barcode from receipts of recent users.
+  - **Total Transactions:** Counting the number of receipts associated with each barcode.
+- The `WHERE` clause ensures only users from the `recent_users` CTE are considered.
+- Grouping is done at the `barcode` level to aggregate data per brand.
+
+---
+
+### **Step 3: Retrieving Brand Information**
+
+```sql
+SELECT
+    b.name AS brand_name,
+    um.total_spend,
+    um.total_transactions
+FROM user_metrics um
+JOIN Brands b ON um.barcode = b.barcode
+ORDER BY total_spend DESC, total_transactions DESC
+LIMIT 1;
+```
+
+**Explanation:**
+- This final step joins the aggregated metrics with the `Brands` table to retrieve brand names.
+- Results are ordered first by highest spend and then by transaction count.
+- The `LIMIT 1` clause ensures only the top-performing brand is returned.
+
+---
+
+## **3. Advantages of the Combined Approach**
+
+- **Efficiency:**
+  - Only one scan over receipts, reducing query execution time.
+  - Avoids redundant computations by combining spend and transaction calculations.
+
+- **Readability:**
+  - The use of CTEs makes the query modular and easy to understand.
+  
+- **Flexibility:**
+  - The query can be easily extended to include additional metrics or filters.
+
+---
+
+## **4. Expected Output Example**
+
+| brand_name | total_spend | total_transactions |
+|------------|-------------|--------------------|
+| Starbucks  | 25000.00     | 120                |
+
+---
+
+## **5. Recommendations**
+
+- Ensure indexes are applied on `created_date`, `user_id`, and `barcode` for performance optimization.
+- Regularly monitor query execution time and optimize when necessary.
+- Consider caching results for frequently accessed reports.
+
+---
+
