@@ -1,0 +1,65 @@
+**Fetch Rewards Combined SQL Queries**
+
+## **1. Combined Query for Spend and Items Purchased Comparison**
+
+```sql
+WITH spend_and_items AS (
+    SELECT
+        rewards_status,
+        AVG(total_spent) AS avg_spend,
+        SUM(item_count) AS total_items_purchased
+    FROM Receipts
+    WHERE rewards_status IN ('Accepted', 'Rejected')
+    GROUP BY rewards_status
+)
+SELECT
+    rewards_status,
+    avg_spend,
+    total_items_purchased,
+    CASE
+        WHEN avg_spend > LAG(avg_spend) OVER (ORDER BY rewards_status) THEN 'Higher'
+        ELSE 'Lower'
+    END AS spend_comparison,
+    CASE
+        WHEN total_items_purchased > LAG(total_items_purchased) OVER (ORDER BY rewards_status) THEN 'Higher'
+        ELSE 'Lower'
+    END AS items_comparison
+FROM spend_and_items;
+```
+
+## **2. Explanation of the Query**
+
+1. **CTE (`spend_and_items`)**  
+   - Aggregates the data to calculate the average spend and total items purchased for both `Accepted` and `Rejected` statuses.
+   - Filters data to include only the relevant receipt statuses.
+
+2. **Main Query:**  
+   - Uses `CASE` and `LAG` window functions to compare values dynamically.
+   - Outputs readable insights indicating whether Accepted or Rejected receipts have higher spend and item counts.
+
+## **3. Advantages of the Combined Approach**
+
+- **Efficiency:**
+  - The data is scanned only once, optimizing performance and reducing computation time.
+  
+- **Readability:**
+  - The query structure remains clean and modular with clear logic.
+  
+- **Performance Optimization:**
+  - Leveraging window functions ensures minimal processing overhead while providing insightful comparisons.
+
+## **4. Expected Output Sample**
+
+| rewards_status | avg_spend | total_items_purchased | spend_comparison | items_comparison |
+|----------------|-----------|----------------------|------------------|------------------|
+| Accepted       | 25.00      | 2000                 | Higher           | Higher           |
+| Rejected       | 15.75      | 1500                 | Lower            | Lower            |
+
+## **5. Next Steps**
+
+- Validate the accuracy of results with stakeholders.
+- Integrate the query into reporting pipelines.
+- Monitor performance in production environments and optimize indexing as needed.
+
+---
+
