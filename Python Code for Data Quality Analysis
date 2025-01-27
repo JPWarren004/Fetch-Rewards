@@ -1,0 +1,49 @@
+import pandas as pd
+import json
+import numpy as np
+
+# Load the data
+users_file = 'users.json'
+receipts_file = 'receipts.json'
+brands_file = 'brands.json'
+
+def load_json(file):
+    with open(file, 'r') as f:
+        return pd.json_normalize(json.load(f))
+
+users_df = load_json(users_file)
+receipts_df = load_json(receipts_file)
+brands_df = load_json(brands_file)
+
+# Function to check missing values
+def check_missing_values(df, name):
+    print(f"\nMissing Values in {name}:")
+    print(df.isnull().sum())
+
+# Function to check duplicate entries
+def check_duplicates(df, key_column, name):
+    duplicates = df[df.duplicated(subset=[key_column])]
+    print(f"\nDuplicate Records in {name} based on {key_column}: {len(duplicates)}")
+    if not duplicates.empty:
+        print(duplicates.head())
+
+# Function to check data types and inconsistencies
+def check_data_types(df, name):
+    print(f"\nData Types and Inconsistencies in {name}:")
+    print(df.dtypes)
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            print(f"Unique values in {col}: {df[col].unique()[:5]}")
+
+# Perform data quality checks
+check_missing_values(users_df, 'Users')
+check_duplicates(users_df, '_id.$oid', 'Users')
+check_data_types(users_df, 'Users')
+
+check_missing_values(receipts_df, 'Receipts')
+check_duplicates(receipts_df, '_id.$oid', 'Receipts')
+check_data_types(receipts_df, 'Receipts')
+
+check_missing_values(brands_df, 'Brands')
+check_duplicates(brands_df, '_id.$oid', 'Brands')
+check_data_types(brands_df, 'Brands')
