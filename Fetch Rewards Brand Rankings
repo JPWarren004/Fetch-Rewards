@@ -1,0 +1,99 @@
+**Fetch Rewards Brand Rankings Using CTEs**
+
+## **1. SQL Query for Brand Rankings Comparison Using CTEs**
+
+```sql
+WITH recent_month AS (
+    SELECT MAX(DATE_TRUNC('month', purchase_date)) AS max_month
+    FROM Receipts
+),
+previous_month AS (
+    SELECT DATE_TRUNC('month', (MAX(purchase_date) - INTERVAL '1 month')) AS prev_month
+    FROM Receipts
+),
+monthly_ranks AS (
+    SELECT 
+        b.name AS brand_name,
+        DATE_TRUNC('month', r.purchase_date) AS month,
+        COUNT(r.receipt_id) AS receipt_count,
+        RANK() OVER (PARTITION BY DATE_TRUNC('month', r.purchase_date) ORDER BY COUNT(r.receipt_id) DESC) AS rank
+    FROM Receipts r
+    JOIN Receipt_Items ri ON r.receipt_id = ri.receipt_id
+    JOIN Brands b ON ri.barcode = b.barcode
+    WHERE DATE_TRUNC('month', r.purchase_date) IN (SELECT max_month FROM recent_month)
+       OR DATE_TRUNC('month', r.purchase_date) IN (SELECT prev_month FROM previous_month)
+    GROUP BY month, b.name
+)
+SELECT 
+    month, 
+    brand_name, 
+    receipt_count, 
+    rank,
+    LAG(rank) OVER (PARTITION BY brand_name ORDER BY month) AS prev_month_rank
+FROM monthly_ranks
+WHERE rank <= 5;
+```
+
+---
+
+## **2. Breakdown of the Query**
+
+1. **recent_month CTE:**
+   - Identifies the most recent month from the receipts table.
+   - Uses `DATE_TRUNC` to group data by month.
+
+2. **previous_month CTE:**
+   - Identifies the previous month relative to the most recent.
+   - Uses interval subtraction to calculate the prior month.
+
+3. **monthly_ranks CTE:**
+   - Joins receipts with receipt items and brands to aggregate receipt counts.
+   - Calculates rankings within each month using the `RANK()` window function.
+   - Filters data for only the recent and previous months.
+
+4. **Final Selection:**
+   - Compares brand rankings by leveraging the `LAG()` function to track rank changes.
+   - Filters to show only the top 5 brands.
+
+---
+
+## **3. Example Output**
+
+| month    | brand_name | receipt_count | rank | prev_month_rank |
+|----------|------------|---------------|------|-----------------|
+| 2024-01  | Starbucks  | 120            | 1    | 2               |
+| 2024-01  | Nike       | 110            | 2    | 1               |
+| 2024-01  | Pepsi      | 95             | 3    | 3               |
+| 2024-01  | Coca-Cola  | 90             | 4    | 4               |
+| 2024-01  | Adidas     | 85             | 5    | 6               |
+
+---
+
+## **4. Potential Limitations and Considerations**
+
+### **Performance Concerns:**
+- **Large Data Volumes:**
+  - The query may become slow when processing millions of rows due to window functions and grouping operations.
+  - Indexing `purchase_date` and `brand_name` columns can help mitigate performance issues.
+
+- **Query Execution Time:**
+  - Running multiple aggregations within the same query can increase load time.
+  - Consider materializing intermediate results for faster queries.
+
+### **Data Completeness:**
+- Ensure that the dataset contains complete records for the most recent and previous months.
+- Handle cases where a brand might not appear in one of the months, leading to NULL values.
+
+### **Scalability:**
+- If new months are frequently added, queries should be optimized to fetch incremental changes rather than processing the entire dataset.
+
+---
+
+## **5. Recommendations**
+
+- Use this CTE-based approach for readability and maintainability.
+- Regularly monitor query performance and optimize with indexing.
+- Consider caching aggregated results to improve response times for frequent queries.
+
+---
+
