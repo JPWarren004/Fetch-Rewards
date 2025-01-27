@@ -1,0 +1,15 @@
+Entities and Relationships:
+Users Table:
+
+Primary Key: user_id
+Relationship: One-to-Many with Receipts (a user can have multiple receipts).
+Receipts Table:
+
+Primary Key: receipt_id
+Foreign Key: user_id (links to Users)
+Relationship: Many-to-One with Brands through product barcode.
+Brands Table:
+
+Primary Key: brand_id
+Foreign Key: barcode (used in receipts for item tracking)
+This model provides a structured way to analyze user behaviors, receipts, and brand interactions.
